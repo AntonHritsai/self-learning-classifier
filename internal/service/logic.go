@@ -1,8 +1,10 @@
-package classifier
+package service
 
 import (
 	"slices"
 	"strings"
+
+	"github.com/AntonKhPI2/self-learning-classifier/internal/models"
 )
 
 func norm(s string) string { return strings.TrimSpace(s) }
@@ -69,20 +71,19 @@ func removeIntersection(a, b []string) (na, nb, inter []string) {
 	return unique(na), unique(nb), inter
 }
 
-func score(c Class, props []string) (hits []string, count int) {
+func score(c models.Class, props []string) (hits []string, count int) {
 	as := toSet(c.Properties)
 	for _, p := range unique(props) {
-		if contains(as, p) {
+		if _, ok := as[p]; ok {
 			hits = append(hits, p)
 		}
 	}
 	return hits, len(hits)
 }
 
-func choose(c1, c2 Class, props []string) (guess string, hits []string) {
+func choose(c1, c2 models.Class, props []string) (guess string, hits []string) {
 	h1, s1 := score(c1, props)
 	h2, s2 := score(c2, props)
-
 	switch {
 	case s1 == 0 && s2 == 0:
 		return "", nil
@@ -91,19 +92,18 @@ func choose(c1, c2 Class, props []string) (guess string, hits []string) {
 	case s2 > s1:
 		return c2.Name, unique(h2)
 	default:
-
 		return "", unique(union(h1, h2))
 	}
 }
 
 func explain(guess string, hits []string) string {
 	if guess == "" && len(hits) == 0 {
-		return "нет совпадений — требуется подтверждение пользователя"
+		return "No matches — please confirm the class."
 	}
 	if guess == "" {
-		return "совпадений поровну — требуется подтверждение пользователя"
+		return "Equal matches — please confirm the class."
 	}
-	return "совпало больше признаков с " + guess
+	return "More properties matched with " + guess + "."
 }
 
 func sortStrings(ss []string) []string {
