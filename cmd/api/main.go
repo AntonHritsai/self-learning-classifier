@@ -1,61 +1,58 @@
 package main
 
 import (
-	"encoding/json"
+	"context"
 	"log"
 	"net/http"
-	"project/githubpoject/self-learning-classifier/internal/classifier"
+	"os"
+	"os/signal"
+	"time"
+
+	"github.com/AntonKhPI2/self-learning-classifier/internal/handler"
+	"github.com/AntonKhPI2/self-learning-classifier/internal/service"
 )
 
 func main() {
-	svc := classifier.NewMemoryService()
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	addr := ":" + port
 
-	mux := http.NewServeMux()
+	svc := service.NewMemoryService()
+	mux := handler.NewHTTPMux(svc)
 
-	mux.HandleFunc("POST /init", func(w http.ResponseWriter, r *http.Request) {
-		var req classifier.InitRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
-			return
+	srv := &http.Server{
+		Addr:              addr,
+		Handler:           mux,
+		ReadTimeout:       10 * time.Second,
+		ReadHeaderTimeout: 5 * time.Second,
+		WriteTimeout:      15 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	go func() {
+		log.Printf("→ HTTP server listening on http://localhost%s", addr)
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
 		}
-		if req.Class1.Name == "" || req.Class2.Name == "" {
-			http.Error(w, "class names are required", http.StatusBadRequest)
-			return
-		}
-		svc.Init(req.Class1, req.Class2)
-		_ = json.NewEncoder(w).Encode(classifier.InitResponse{Ok: true})
-	})
+	}()
 
-	mux.HandleFunc("POST /classify", func(w http.ResponseWriter, r *http.Request) {
-		var req classifier.ClassifyRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		resp := svc.Classify(req.Properties)
-		_ = json.NewEncoder(w).Encode(resp)
-	})
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt)
+	<-stop
 
-	mux.HandleFunc("POST /feedback", func(w http.ResponseWriter, r *http.Request) {
-		var req classifier.FeedbackRequest
-		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-			http.Error(w, "bad json: "+err.Error(), http.StatusBadRequest)
-			return
-		}
-		switch req.Variant {
-		case "class1", "class2", "none":
-			svc.Feedback(req.Variant, req.Properties)
-			_ = json.NewEncoder(w).Encode(classifier.FeedbackResponse{Ok: true})
-		default:
-			http.Error(w, "variant must be one of: class1|class2|none", http.StatusBadRequest)
-			return
-		}
-	})
+	log.Println("↘ shutting down...")
 
-	mux.HandleFunc("GET /state", func(w http.ResponseWriter, r *http.Request) {
-		_ = json.NewEncoder(w).Encode(svc.Snapshot())
-	})
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	log.Println("HTTP server listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("graceful shutdown failed: %v", err)
+		if cerr := srv.Close(); cerr != nil {
+			log.Printf("force close error: %v", cerr)
+		}
+	}
+
+	log.Println("✓ server stopped")
 }

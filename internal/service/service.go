@@ -2,28 +2,28 @@ package service
 
 import (
 	"sync"
+
+	"github.com/AntonKhPI2/self-learning-classifier/internal/models"
 )
 
 type Service interface {
-	Init(c1, c2 Class)
-	Classify(props []string) ClassifyResponse
+	Init(c1, c2 models.Class)
+	Classify(props []string) models.ClassifyResponse
 	Feedback(variant string, props []string)
-	Snapshot() Snapshot
+	Snapshot() models.Snapshot
 }
 
 type memoryService struct {
 	mu           sync.RWMutex
-	class1       Class
-	class2       Class
+	class1       models.Class
+	class2       models.Class
 	generalClass []string
 	noneClass    []string
 }
 
-func NewMemoryService() Service {
-	return &memoryService{}
-}
+func NewMemoryService() Service { return &memoryService{} }
 
-func (s *memoryService) Init(c1, c2 Class) {
+func (s *memoryService) Init(c1, c2 models.Class) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -31,13 +31,12 @@ func (s *memoryService) Init(c1, c2 Class) {
 	c2.Properties = unique(c2.Properties)
 
 	na, nb, inter := removeIntersection(c1.Properties, c2.Properties)
-	s.class1 = Class{Name: c1.Name, Properties: na}
-	s.class2 = Class{Name: c2.Name, Properties: nb}
+	s.class1 = models.Class{Name: c1.Name, Properties: na}
+	s.class2 = models.Class{Name: c2.Name, Properties: nb}
 	s.generalClass = unique(append(s.generalClass, inter...))
-
 }
 
-func (s *memoryService) Classify(props []string) ClassifyResponse {
+func (s *memoryService) Classify(props []string) models.ClassifyResponse {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -48,19 +47,19 @@ func (s *memoryService) Classify(props []string) ClassifyResponse {
 
 	guess, hits := choose(s.class1, s.class2, props)
 
-	resp := ClassifyResponse{
+	resp := models.ClassifyResponse{
 		Guess:          guess,
 		Reason:         explain(guess, hits),
 		KnownHits:      sortStrings(hits),
 		Unknown:        sortStrings(unknown),
 		Recommendation: "",
 	}
-
 	if guess == "" {
-		resp.Recommendation = "уточните: это \"" + s.class1.Name + "\" или \"" + s.class2.Name + "\"? иначе добавим в none"
+		resp.Recommendation = "Please specify whether it is \"" + s.class1.Name + "\" or \"" + s.class2.Name + "\". Otherwise, unknown properties will be added to 'none'."
 	} else {
-		resp.Recommendation = "подтвердите предположение или скорректируйте"
+		resp.Recommendation = "Please confirm or adjust the suggestion."
 	}
+
 	return resp
 }
 
@@ -94,11 +93,11 @@ func (s *memoryService) Feedback(variant string, props []string) {
 	s.generalClass = unique(append(s.generalClass, inter2...))
 }
 
-func (s *memoryService) Snapshot() Snapshot {
+func (s *memoryService) Snapshot() models.Snapshot {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return Snapshot{
+	return models.Snapshot{
 		Class1:       s.class1,
 		Class2:       s.class2,
 		GeneralClass: sortStrings(s.generalClass),
