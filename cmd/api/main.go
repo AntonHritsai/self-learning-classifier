@@ -12,7 +12,6 @@ func main() {
 
 	mux := http.NewServeMux()
 
-	// Инициализация двух классов
 	mux.HandleFunc("POST /init", func(w http.ResponseWriter, r *http.Request) {
 		var req classifier.InitRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -27,7 +26,6 @@ func main() {
 		_ = json.NewEncoder(w).Encode(classifier.InitResponse{Ok: true})
 	})
 
-	// Классификация входных признаков
 	mux.HandleFunc("POST /classify", func(w http.ResponseWriter, r *http.Request) {
 		var req classifier.ClassifyRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -38,7 +36,6 @@ func main() {
 		_ = json.NewEncoder(w).Encode(resp)
 	})
 
-	// Обратная связь (подтверждение/обучение)
 	mux.HandleFunc("POST /feedback", func(w http.ResponseWriter, r *http.Request) {
 		var req classifier.FeedbackRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -55,7 +52,6 @@ func main() {
 		}
 	})
 
-	// Состояние (для отладки)
 	mux.HandleFunc("GET /state", func(w http.ResponseWriter, r *http.Request) {
 		_ = json.NewEncoder(w).Encode(svc.Snapshot())
 	})
