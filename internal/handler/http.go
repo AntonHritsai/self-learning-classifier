@@ -1,20 +1,23 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net/http"
+	"os"
 
 	"github.com/AntonKhPI2/self-learning-classifier/internal/models"
+	"github.com/AntonKhPI2/self-learning-classifier/internal/repository"
 	"github.com/AntonKhPI2/self-learning-classifier/internal/service"
 )
 
 type httpHandler struct {
-	svc service.Service
+	repo repository.Repository
 }
 
-func NewHTTPMux(svc service.Service) *http.ServeMux {
-	h := &httpHandler{svc: svc}
+func NewHTTPMux(repo repository.Repository) *http.ServeMux {
+	h := &httpHandler{repo: repo}
 	mux := http.NewServeMux()
 
 	mux.Handle("/api/v1/init", h.wrap(h.init))
@@ -38,6 +41,9 @@ func (h *httpHandler) init(w http.ResponseWriter, r *http.Request) error {
 		return h.methodNotAllowed(w, r, http.MethodPost)
 	}
 
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
 	var req models.InitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return h.badRequest(w, "bad json: "+err.Error())
@@ -45,7 +51,8 @@ func (h *httpHandler) init(w http.ResponseWriter, r *http.Request) error {
 	if req.Class1.Name == "" || req.Class2.Name == "" {
 		return h.badRequest(w, "class names are required")
 	}
-	h.svc.Init(req.Class1, req.Class2)
+
+	svc.Init(req.Class1, req.Class2)
 	return h.writeJSON(w, http.StatusOK, models.InitResponse{Ok: true})
 }
 
@@ -57,11 +64,14 @@ func (h *httpHandler) classify(w http.ResponseWriter, r *http.Request) error {
 		return h.methodNotAllowed(w, r, http.MethodPost)
 	}
 
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
 	var req models.ClassifyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return h.badRequest(w, "bad json: "+err.Error())
 	}
-	resp := h.svc.Classify(req.Properties)
+	resp := svc.Classify(req.Properties)
 	return h.writeJSON(w, http.StatusOK, resp)
 }
 
@@ -73,13 +83,16 @@ func (h *httpHandler) feedback(w http.ResponseWriter, r *http.Request) error {
 		return h.methodNotAllowed(w, r, http.MethodPost)
 	}
 
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
 	var req models.FeedbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return h.badRequest(w, "bad json: "+err.Error())
 	}
 	switch req.Variant {
 	case "class1", "class2", "none":
-		h.svc.Feedback(req.Variant, req.Properties)
+		svc.Feedback(req.Variant, req.Properties)
 		return h.writeJSON(w, http.StatusOK, models.FeedbackResponse{Ok: true})
 	default:
 		return h.badRequest(w, "variant must be one of: class1|class2|none")
@@ -93,14 +106,18 @@ func (h *httpHandler) state(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		return h.methodNotAllowed(w, r, http.MethodGet)
 	}
-	return h.writeJSON(w, http.StatusOK, h.svc.Snapshot())
+
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
+	return h.writeJSON(w, http.StatusOK, svc.Snapshot())
 }
 
 func (h *httpHandler) wrap(fn func(http.ResponseWriter, *http.Request) error) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Vary", "Origin")
 
@@ -139,7 +156,6 @@ func (h *httpHandler) methodNotAllowed(w http.ResponseWriter, r *http.Request, a
 }
 
 func (h *httpHandler) cors(w http.ResponseWriter, _ *http.Request) error {
-
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -151,7 +167,6 @@ func joinAllow(methods []string) string {
 	case 1:
 		return methods[0]
 	default:
-
 		out := methods[0]
 		for i := 1; i < len(methods); i++ {
 			out += ", " + methods[i]
@@ -160,4 +175,36 @@ func joinAllow(methods []string) string {
 	}
 }
 
-var _ = errors.New
+func getenvDefault(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+func randString() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func getUserID(w http.ResponseWriter, r *http.Request) string {
+	header := getenvDefault("USER_ID_HEADER", "X-User-ID")
+	if uid := r.Header.Get(header); uid != "" {
+		return uid
+	}
+	cookieName := getenvDefault("ANON_COOKIE_NAME", "slc_uid")
+	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
+		return c.Value
+	}
+
+	uid := randString()
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieName,
+		Value:    uid,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	return uid
+}

@@ -1,9 +1,8 @@
 package service
 
 import (
-	"sync"
-
 	"github.com/AntonKhPI2/self-learning-classifier/internal/models"
+	"sync"
 )
 
 type Service interface {
