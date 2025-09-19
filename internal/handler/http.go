@@ -25,7 +25,7 @@ func NewHTTPMux(repo repository.Repository) *http.ServeMux {
 	mux.Handle("/api/v1/feedback", h.wrap(h.feedback))
 	mux.Handle("/api/v1/state", h.wrap(h.state))
 
-	mux.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte("ok"))
 	})
