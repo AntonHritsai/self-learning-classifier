@@ -4,7 +4,6 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"log"
 	"net/http"
 	"os"
 
@@ -116,7 +115,6 @@ func (h *httpHandler) state(w http.ResponseWriter, r *http.Request) error {
 
 func (h *httpHandler) wrap(fn func(http.ResponseWriter, *http.Request) error) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		log.Printf("%s %s", r.Method, r.URL.Path)
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
