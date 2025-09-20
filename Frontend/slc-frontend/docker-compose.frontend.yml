@@ -1,0 +1,10 @@
+services:
+  web:
+    build:
+      context: .                # Dockerfile и package.json в этой папке
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ${FRONTEND_API_URL:-http://localhost:8080}
+    ports:
+      - "8081:80"
+    restart: unless-stopped
