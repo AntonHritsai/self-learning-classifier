@@ -8,13 +8,11 @@ Typical flow:
 3) Feedback: confirm/correct the prediction → the model updates itself.  
 4) Inspect/reset: view current state or reset to start over.
 
-> Built for labs and demos: simple, stateless HTTP API by default; optional persistence can be added later.
+> Built for demos: simple, stateless HTTP API by default; optional persistence can be added later.
 
 ---
 
 ## 📸 Screenshot (placeholder)
-
-> Drop a screenshot into `docs/screenshot.png` and the image below will render on GitHub.
 
 ![App screenshot](docs/readme.png)
 
@@ -25,7 +23,6 @@ Typical flow:
 - 🧩 **Explainable**: you can query the stored properties for both classes and “general” overlaps.
 - 🧪 **Simple HTTP API** for training, classifying, feedback, and state.
 - 🐳 **Docker-ready**; runs on `:8080`.
-- 🇬🇧 **English responses** from the service.
 
 ---
 
@@ -43,7 +40,6 @@ cd self-learning-classifier
 
 > **Module path:** ensure your `go.mod` uses  
 > `module github.com/AntonKhPI2/self-learning-classifier`  
-> (⚠️ no “.git” suffix)
 
 ### Run (Go)
 ```bash
