@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "DOCKERFILE",
+    "rootDirectory": "Backend"
+  },
+  "deploy": {
+    "healthcheckPath": "/status",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
