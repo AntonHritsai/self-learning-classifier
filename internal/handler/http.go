@@ -19,11 +19,16 @@ type httpHandler struct {
 func NewHTTPMux(repo repository.Repository) *http.ServeMux {
 	h := &httpHandler{repo: repo}
 	mux := http.NewServeMux()
-
+	mux.Handle("/api/v1/reset", h.wrap(h.reset))
+	mux.Handle("/api/v1/prop/rename", h.wrap(h.propRename))
 	mux.Handle("/api/v1/init", h.wrap(h.init))
 	mux.Handle("/api/v1/classify", h.wrap(h.classify))
 	mux.Handle("/api/v1/feedback", h.wrap(h.feedback))
 	mux.Handle("/api/v1/state", h.wrap(h.state))
+	mux.Handle("/api/v1/prop/remove", h.wrap(h.propRemove))
+	mux.Handle("/api/v1/prop/move", h.wrap(h.propMove))
+	mux.Handle("/api/v1/classes/rename", h.wrap(h.renameClass))
+	mux.Handle("/api/v1/prop/add", h.wrap(h.propAdd))
 
 	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -54,6 +59,23 @@ func (h *httpHandler) init(w http.ResponseWriter, r *http.Request) error {
 
 	svc.Init(req.Class1, req.Class2)
 	return h.writeJSON(w, http.StatusOK, models.InitResponse{Ok: true})
+}
+
+func (h *httpHandler) reset(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
+	if err := svc.Reset(); err != nil {
+		return h.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (h *httpHandler) classify(w http.ResponseWriter, r *http.Request) error {
@@ -206,4 +228,116 @@ func getUserID(w http.ResponseWriter, r *http.Request) string {
 		SameSite: http.SameSiteLaxMode,
 	})
 	return uid
+}
+
+func (h *httpHandler) propRemove(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.RemovePropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Property == "" {
+		return h.badRequest(w, "property is required")
+	}
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.RemoveProperty(req.Area, req.Property); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) propMove(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.MovePropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Property == "" {
+		return h.badRequest(w, "property is required")
+	}
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.MoveProperty(req.From, req.To, req.Property); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) renameClass(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.RenameClassRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Name == "" {
+		return h.badRequest(w, "name is required")
+	}
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.RenameClass(req.Class, req.Name); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) propRename(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.RenamePropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.From == "" || req.To == "" {
+		return h.badRequest(w, "both 'from' and 'to' are required")
+	}
+
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.RenameProperty(req.Area, req.From, req.To); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) propAdd(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.AddPropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Property == "" {
+		return h.badRequest(w, "property is required")
+	}
+
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.AddProperty(req.Area, req.Property); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }

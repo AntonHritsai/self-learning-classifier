@@ -20,8 +20,8 @@ type State struct {
 
 type Repository interface {
 	GetState(userID string) (State, error)
-
 	UpsertState(userID string, st State) error
+	ResetUser(userID string) error
 }
 
 type MySQLRepo struct {
@@ -114,6 +114,11 @@ ON DUPLICATE KEY UPDATE
 		st.Class1.Name, st.Class2.Name,
 		c1pJSON, c2pJSON, genJSON, noneJSON,
 	)
+	return err
+}
+
+func (r *MySQLRepo) ResetUser(userID string) error {
+	_, err := r.DB.Exec(`DELETE FROM user_state WHERE user_id = ?`, userID)
 	return err
 }
 

@@ -10,9 +10,9 @@ type ClassifyAny = Record<string, any>;
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
 const V1 = `${API}/api/v1`;
-const RESET_ON_RELOAD = false; // ⟵ было true, из-за этого шёл пустой init
+const RESET_ON_RELOAD = false;
 
-// стабильный uid для изоляции пользователя
+
 const UID = (() => {
     const k = "slc_uid";
     let v = localStorage.getItem(k);
@@ -23,7 +23,7 @@ const UID = (() => {
     return v;
 })();
 
-// общий fetch с заголовком X-User-ID
+
 async function api(path: string, init?: RequestInit) {
     const h = new Headers(init?.headers || {});
     h.set("X-User-ID", UID);
@@ -76,14 +76,14 @@ export default function App() {
     useEffect(() => {
         (async () => {
             if (RESET_ON_RELOAD) {
-                // больше не делаем пустых init — оставлено как safeguard
-                // await api(`/init`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ class1:{name:"",properties:[]}, class2:{name:"",properties:[]} }) });
+
+
             }
             await load();
             const t = setInterval(load, 4000);
             return () => clearInterval(t);
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
+
     }, []);
 
     const allProps = useMemo(() => {
@@ -306,7 +306,7 @@ function PredictionView({ jsonString }: { jsonString: string }) {
     }
 }
 
-// styles (как у тебя)
+
 const page: React.CSSProperties = { minHeight: "100vh", width: "100vw", overflow: "hidden", background: "#0f172a", color: "#111827", fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif" };
 const shell: React.CSSProperties = { height: "100vh", width: "100%", display: "flex", flexDirection: "column" };
 const header: React.CSSProperties = { padding: "14px 20px", borderBottom: "1px solid #e5e7eb", background: "#ffffff" };

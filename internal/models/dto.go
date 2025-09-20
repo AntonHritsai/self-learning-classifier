@@ -29,3 +29,34 @@ type FeedbackRequest struct {
 type FeedbackResponse struct {
 	Ok bool `json:"ok"`
 }
+
+type RemovePropertyRequest struct {
+	Area     string `json:"area"`
+	Property string `json:"property"`
+}
+
+type MovePropertyRequest struct {
+	From     string `json:"from"`
+	To       string `json:"to"`
+	Property string `json:"property"`
+}
+
+type RenameClassRequest struct {
+	Class string `json:"class"`
+	Name  string `json:"name"`
+}
+
+type RenamePropertyRequest struct {
+	Area string `json:"area"`
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+type AddPropertyRequest struct {
+	Area     string `json:"area"`
+	Property string `json:"property"`
+}
+
+type OkResponse struct {
+	Ok bool `json:"ok"`
+}
