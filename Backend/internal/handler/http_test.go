@@ -46,7 +46,6 @@ func TestHTTP_Flow(t *testing.T) {
 	jar, _ := cookiejar.New(nil)
 	client := &http.Client{Jar: jar}
 
-	// 1) init
 	initReq := models.InitRequest{
 		Class1: models.Class{Name: "Cat", Properties: []string{"whiskers", "purr"}},
 		Class2: models.Class{Name: "Dog", Properties: []string{"bark"}},
@@ -60,9 +59,6 @@ func TestHTTP_Flow(t *testing.T) {
 		t.Fatalf("init status=%d", resp.StatusCode)
 	}
 	resp.Body.Close()
-	// cookie теперь в jar и будет подставляться автоматически
-
-	// 2) classify
 	clReq := models.ClassifyRequest{Properties: []string{"purr", "tail"}}
 	b, _ = json.Marshal(clReq)
 	resp, err = client.Post(srv.URL+"/api/v1/classify", "application/json", bytes.NewReader(b))
@@ -78,7 +74,6 @@ func TestHTTP_Flow(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// 3) feedback -> добавляем "tail" в class2
 	fbReq := models.FeedbackRequest{Variant: "class2", Properties: []string{"tail"}}
 	b, _ = json.Marshal(fbReq)
 	resp, err = client.Post(srv.URL+"/api/v1/feedback", "application/json", bytes.NewReader(b))
@@ -90,7 +85,6 @@ func TestHTTP_Flow(t *testing.T) {
 	}
 	resp.Body.Close()
 
-	// 4) state — проверяем, что "tail" появился в class2
 	resp, err = client.Get(srv.URL + "/api/v1/state")
 	if err != nil {
 		t.Fatal(err)
@@ -115,7 +109,6 @@ func TestHTTP_Flow(t *testing.T) {
 		t.Fatalf(`expected "tail" in class2 properties: %v`, snap.Class2.Properties)
 	}
 
-	// 5) статус
 	resp, err = client.Get(srv.URL + "/status")
 	if err != nil {
 		t.Fatal(err)
