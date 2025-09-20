@@ -278,14 +278,3 @@ CMD ["slc"]
 - [ ] Export/import state (JSON).
 
 ---
-
-## Contributing
-
-PRs welcome. Please open an issue describing your change first if it’s non-trivial.
-
-1) Fork the repo  
-2) Create a feature branch  
-3) Commit with clear messages  
-4) Open a PR
-
----
