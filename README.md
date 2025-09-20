@@ -302,13 +302,3 @@ PRs welcome. Please open an issue describing your change first if it’s non-tri
 4) Open a PR
 
 ---
-
-## License
-
-MIT — do whatever, just keep the notice.
-
----
-
-## Acknowledgments
-
-This project originates from a university lab on simple self-learning systems and set-based classification. Thanks to everyone who tested and shared feedback.
