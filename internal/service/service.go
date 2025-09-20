@@ -39,7 +39,7 @@ func (u *userService) RenameProperty(area, from, to string) error {
 	}
 	_, err := u.withState(func(ms *memoryService) {
 		rename := func(xs []string) []string {
-			// если целевое имя уже было — просто удаляем старое
+
 			foundTo := false
 			for _, v := range xs {
 				if v == to {
@@ -105,7 +105,7 @@ func (u *userService) MoveProperty(from, to, prop string) error {
 		return nil
 	}
 	_, err := u.withState(func(ms *memoryService) {
-		// remove
+
 		switch strings.ToLower(from) {
 		case "class1":
 			ms.class1.Properties = remove(ms.class1.Properties, prop)
@@ -116,7 +116,7 @@ func (u *userService) MoveProperty(from, to, prop string) error {
 		case "none":
 			ms.noneClass = remove(ms.noneClass, prop)
 		}
-		// add
+
 		switch strings.ToLower(to) {
 		case "class1":
 			ms.class1.Properties = uniqueAppend(ms.class1.Properties, prop)
@@ -271,7 +271,6 @@ func remove(xs []string, v string) []string {
 	return out
 }
 
-// Добавление свойства (userService через withState)
 func (u *userService) AddProperty(area, prop string) error {
 	prop = strings.TrimSpace(prop)
 	if prop == "" {
