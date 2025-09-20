@@ -279,19 +279,6 @@ CMD ["slc"]
 
 ---
 
-## FAQ
-
-**Q:** Why only two classes?  
-**A:** It’s a teaching/demo tool. Multi-class could be added, but the lab task is binary.
-
-**Q:** What about duplicates?  
-**A:** The service keeps properties unique per class (set semantics).
-
-**Q:** Can I reset just one class?  
-**A:** Not yet; currently full reset. It’s easy to add endpoints for partial resets.
-
----
-
 ## Contributing
 
 PRs welcome. Please open an issue describing your change first if it’s non-trivial.
