@@ -1,26 +1,34 @@
 package handler
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
-	"errors"
 	"net/http"
+	"os"
 
 	"github.com/AntonKhPI2/self-learning-classifier/internal/models"
+	"github.com/AntonKhPI2/self-learning-classifier/internal/repository"
 	"github.com/AntonKhPI2/self-learning-classifier/internal/service"
 )
 
 type httpHandler struct {
-	svc service.Service
+	repo repository.Repository
 }
 
-func NewHTTPMux(svc service.Service) *http.ServeMux {
-	h := &httpHandler{svc: svc}
+func NewHTTPMux(repo repository.Repository) *http.ServeMux {
+	h := &httpHandler{repo: repo}
 	mux := http.NewServeMux()
-
+	mux.Handle("/api/v1/reset", h.wrap(h.reset))
+	mux.Handle("/api/v1/prop/rename", h.wrap(h.propRename))
 	mux.Handle("/api/v1/init", h.wrap(h.init))
 	mux.Handle("/api/v1/classify", h.wrap(h.classify))
 	mux.Handle("/api/v1/feedback", h.wrap(h.feedback))
 	mux.Handle("/api/v1/state", h.wrap(h.state))
+	mux.Handle("/api/v1/prop/remove", h.wrap(h.propRemove))
+	mux.Handle("/api/v1/prop/move", h.wrap(h.propMove))
+	mux.Handle("/api/v1/classes/rename", h.wrap(h.renameClass))
+	mux.Handle("/api/v1/prop/add", h.wrap(h.propAdd))
 
 	mux.HandleFunc("/status", func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -38,6 +46,9 @@ func (h *httpHandler) init(w http.ResponseWriter, r *http.Request) error {
 		return h.methodNotAllowed(w, r, http.MethodPost)
 	}
 
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
 	var req models.InitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return h.badRequest(w, "bad json: "+err.Error())
@@ -45,8 +56,26 @@ func (h *httpHandler) init(w http.ResponseWriter, r *http.Request) error {
 	if req.Class1.Name == "" || req.Class2.Name == "" {
 		return h.badRequest(w, "class names are required")
 	}
-	h.svc.Init(req.Class1, req.Class2)
+
+	svc.Init(req.Class1, req.Class2)
 	return h.writeJSON(w, http.StatusOK, models.InitResponse{Ok: true})
+}
+
+func (h *httpHandler) reset(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
+	if err := svc.Reset(); err != nil {
+		return h.writeJSON(w, http.StatusInternalServerError, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
 func (h *httpHandler) classify(w http.ResponseWriter, r *http.Request) error {
@@ -57,11 +86,14 @@ func (h *httpHandler) classify(w http.ResponseWriter, r *http.Request) error {
 		return h.methodNotAllowed(w, r, http.MethodPost)
 	}
 
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
 	var req models.ClassifyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return h.badRequest(w, "bad json: "+err.Error())
 	}
-	resp := h.svc.Classify(req.Properties)
+	resp := svc.Classify(req.Properties)
 	return h.writeJSON(w, http.StatusOK, resp)
 }
 
@@ -73,13 +105,16 @@ func (h *httpHandler) feedback(w http.ResponseWriter, r *http.Request) error {
 		return h.methodNotAllowed(w, r, http.MethodPost)
 	}
 
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
 	var req models.FeedbackRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		return h.badRequest(w, "bad json: "+err.Error())
 	}
 	switch req.Variant {
 	case "class1", "class2", "none":
-		h.svc.Feedback(req.Variant, req.Properties)
+		svc.Feedback(req.Variant, req.Properties)
 		return h.writeJSON(w, http.StatusOK, models.FeedbackResponse{Ok: true})
 	default:
 		return h.badRequest(w, "variant must be one of: class1|class2|none")
@@ -93,14 +128,17 @@ func (h *httpHandler) state(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != http.MethodGet {
 		return h.methodNotAllowed(w, r, http.MethodGet)
 	}
-	return h.writeJSON(w, http.StatusOK, h.svc.Snapshot())
+
+	uid := getUserID(w, r)
+	svc := service.NewUserService(h.repo, uid)
+
+	return h.writeJSON(w, http.StatusOK, svc.Snapshot())
 }
 
 func (h *httpHandler) wrap(fn func(http.ResponseWriter, *http.Request) error) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-User-ID")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		w.Header().Set("Vary", "Origin")
 
@@ -139,7 +177,6 @@ func (h *httpHandler) methodNotAllowed(w http.ResponseWriter, r *http.Request, a
 }
 
 func (h *httpHandler) cors(w http.ResponseWriter, _ *http.Request) error {
-
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
@@ -151,7 +188,6 @@ func joinAllow(methods []string) string {
 	case 1:
 		return methods[0]
 	default:
-
 		out := methods[0]
 		for i := 1; i < len(methods); i++ {
 			out += ", " + methods[i]
@@ -160,4 +196,148 @@ func joinAllow(methods []string) string {
 	}
 }
 
-var _ = errors.New
+func getenvDefault(k, def string) string {
+	if v := os.Getenv(k); v != "" {
+		return v
+	}
+	return def
+}
+
+func randString() string {
+	b := make([]byte, 16)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+func getUserID(w http.ResponseWriter, r *http.Request) string {
+	header := getenvDefault("USER_ID_HEADER", "X-User-ID")
+	if uid := r.Header.Get(header); uid != "" {
+		return uid
+	}
+	cookieName := getenvDefault("ANON_COOKIE_NAME", "slc_uid")
+	if c, err := r.Cookie(cookieName); err == nil && c.Value != "" {
+		return c.Value
+	}
+
+	uid := randString()
+	http.SetCookie(w, &http.Cookie{
+		Name:     cookieName,
+		Value:    uid,
+		Path:     "/",
+		HttpOnly: true,
+		SameSite: http.SameSiteLaxMode,
+	})
+	return uid
+}
+
+func (h *httpHandler) propRemove(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.RemovePropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Property == "" {
+		return h.badRequest(w, "property is required")
+	}
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.RemoveProperty(req.Area, req.Property); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) propMove(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.MovePropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Property == "" {
+		return h.badRequest(w, "property is required")
+	}
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.MoveProperty(req.From, req.To, req.Property); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) renameClass(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.RenameClassRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Name == "" {
+		return h.badRequest(w, "name is required")
+	}
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.RenameClass(req.Class, req.Name); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) propRename(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.RenamePropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.From == "" || req.To == "" {
+		return h.badRequest(w, "both 'from' and 'to' are required")
+	}
+
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.RenameProperty(req.Area, req.From, req.To); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}
+
+func (h *httpHandler) propAdd(w http.ResponseWriter, r *http.Request) error {
+	if r.Method == http.MethodOptions {
+		return h.cors(w, r)
+	}
+	if r.Method != http.MethodPost {
+		return h.methodNotAllowed(w, r, http.MethodPost)
+	}
+
+	var req models.AddPropertyRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return h.badRequest(w, "bad json: "+err.Error())
+	}
+	if req.Property == "" {
+		return h.badRequest(w, "property is required")
+	}
+
+	svc := service.NewUserService(h.repo, getUserID(w, r))
+	if err := svc.AddProperty(req.Area, req.Property); err != nil {
+		return h.writeJSON(w, http.StatusBadRequest, map[string]any{"error": err.Error()})
+	}
+	return h.writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+}

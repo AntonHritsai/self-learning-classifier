@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+	"strings"
 	"sync"
 
 	"github.com/AntonKhPI2/self-learning-classifier/internal/models"
@@ -11,6 +13,12 @@ type Service interface {
 	Classify(props []string) models.ClassifyResponse
 	Feedback(variant string, props []string)
 	Snapshot() models.Snapshot
+	Reset() error
+	RemoveProperty(area, prop string) error
+	MoveProperty(from, to, prop string) error
+	RenameClass(class, name string) error
+	RenameProperty(area, from, to string) error
+	AddProperty(area, prop string) error
 }
 
 type memoryService struct {
@@ -22,6 +30,130 @@ type memoryService struct {
 }
 
 func NewMemoryService() Service { return &memoryService{} }
+
+func (u *userService) RenameProperty(area, from, to string) error {
+	from = strings.TrimSpace(from)
+	to = strings.TrimSpace(to)
+	if from == "" || to == "" || from == to {
+		return nil
+	}
+	_, err := u.withState(func(ms *memoryService) {
+		rename := func(xs []string) []string {
+
+			foundTo := false
+			for _, v := range xs {
+				if v == to {
+					foundTo = true
+					break
+				}
+			}
+			out := xs[:0]
+			for _, v := range xs {
+				if v == from {
+					if !foundTo {
+						out = append(out, to)
+					}
+				} else {
+					out = append(out, v)
+				}
+			}
+			return out
+		}
+
+		switch strings.ToLower(area) {
+		case "class1":
+			ms.class1.Properties = rename(ms.class1.Properties)
+		case "class2":
+			ms.class2.Properties = rename(ms.class2.Properties)
+		case "general":
+			ms.generalClass = rename(ms.generalClass)
+		case "none":
+			ms.noneClass = rename(ms.noneClass)
+		case "all":
+			ms.class1.Properties = rename(ms.class1.Properties)
+			ms.class2.Properties = rename(ms.class2.Properties)
+			ms.generalClass = rename(ms.generalClass)
+			ms.noneClass = rename(ms.noneClass)
+		}
+	})
+	return err
+}
+
+func (s *memoryService) RenameProperty(area, from, to string) error { return nil }
+
+func (u *userService) RemoveProperty(area, prop string) error {
+	_, err := u.withState(func(ms *memoryService) {
+		switch strings.ToLower(area) {
+		case "class1":
+			ms.class1.Properties = remove(ms.class1.Properties, prop)
+		case "class2":
+			ms.class2.Properties = remove(ms.class2.Properties, prop)
+		case "general":
+			ms.generalClass = remove(ms.generalClass, prop)
+		case "none":
+			ms.noneClass = remove(ms.noneClass, prop)
+		}
+	})
+	return err
+}
+func (s *memoryService) RemoveProperty(area, prop string) error   { return nil }
+func (s *memoryService) MoveProperty(from, to, prop string) error { return nil }
+func (s *memoryService) RenameClass(class, name string) error     { return nil }
+
+func (u *userService) MoveProperty(from, to, prop string) error {
+	if strings.EqualFold(from, to) {
+		return nil
+	}
+	_, err := u.withState(func(ms *memoryService) {
+
+		switch strings.ToLower(from) {
+		case "class1":
+			ms.class1.Properties = remove(ms.class1.Properties, prop)
+		case "class2":
+			ms.class2.Properties = remove(ms.class2.Properties, prop)
+		case "general":
+			ms.generalClass = remove(ms.generalClass, prop)
+		case "none":
+			ms.noneClass = remove(ms.noneClass, prop)
+		}
+
+		switch strings.ToLower(to) {
+		case "class1":
+			ms.class1.Properties = uniqueAppend(ms.class1.Properties, prop)
+		case "class2":
+			ms.class2.Properties = uniqueAppend(ms.class2.Properties, prop)
+		case "general":
+			ms.generalClass = uniqueAppend(ms.generalClass, prop)
+		case "none":
+			ms.noneClass = uniqueAppend(ms.noneClass, prop)
+		}
+	})
+	return err
+}
+
+func (u *userService) RenameClass(class, name string) error {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		return errors.New("empty name")
+	}
+	_, err := u.withState(func(ms *memoryService) {
+		switch strings.ToLower(class) {
+		case "class1":
+			ms.class1.Name = name
+		case "class2":
+			ms.class2.Name = name
+		}
+	})
+	return err
+}
+
+func (s *userService) Reset() error {
+	return s.repo.ResetUser(s.userID)
+}
+
+func (s *memoryService) Reset() error {
+	return nil
+}
 
 func (s *memoryService) Init(c1, c2 models.Class) {
 	s.mu.Lock()
@@ -104,3 +236,59 @@ func (s *memoryService) Snapshot() models.Snapshot {
 		NoneClass:    sortStrings(s.noneClass),
 	}
 }
+
+func pickArea(st *models.Snapshot, area string) (*[]string, error) {
+	switch strings.ToLower(area) {
+	case "class1":
+		return &st.Class1.Properties, nil
+	case "class2":
+		return &st.Class2.Properties, nil
+	case "general":
+		return &st.GeneralClass, nil
+	case "none":
+		return &st.NoneClass, nil
+	default:
+		return nil, errors.New("bad area (use class1|class2|general|none)")
+	}
+}
+
+func uniqueAppend(xs []string, v string) []string {
+	for _, x := range xs {
+		if x == v {
+			return xs
+		}
+	}
+	return append(xs, v)
+}
+
+func remove(xs []string, v string) []string {
+	out := xs[:0]
+	for _, x := range xs {
+		if x != v {
+			out = append(out, x)
+		}
+	}
+	return out
+}
+
+func (u *userService) AddProperty(area, prop string) error {
+	prop = strings.TrimSpace(prop)
+	if prop == "" {
+		return nil
+	}
+	_, err := u.withState(func(ms *memoryService) {
+		switch strings.ToLower(area) {
+		case "class1":
+			ms.class1.Properties = uniqueAppend(ms.class1.Properties, prop)
+		case "class2":
+			ms.class2.Properties = uniqueAppend(ms.class2.Properties, prop)
+		case "general":
+			ms.generalClass = uniqueAppend(ms.generalClass, prop)
+		case "none":
+			ms.noneClass = uniqueAppend(ms.noneClass, prop)
+		}
+	})
+	return err
+}
+
+func (s *memoryService) AddProperty(area, prop string) error { return nil }
