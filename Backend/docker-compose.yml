@@ -38,5 +38,17 @@ services:
       USER_ID_HEADER: X-User-ID
       ANON_COOKIE_NAME: slc_uid
 
+  frontend:
+    build:
+      context: ../Frontend/slc-frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://localhost:8080
+    container_name: slc-frontend
+    depends_on:
+      - app
+    ports:
+      - "3000:80"
+
 volumes:
   slc-mysql-data:
