@@ -1,280 +1,161 @@
 # Self-Learning Classifier
 
-A tiny Go service that learns to distinguish **two classes** of objects by their **textual properties** (features) and keeps improving from user feedback.  
-Typical flow:
+[![Go Version](https://img.shields.io/badge/go-1.22-blue.svg)](https://go.dev)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Built with](https://img.shields.io/badge/Built%20with-React%20%26%20Go-cyan.svg)](#tech-stack)
 
-1) Seed training: name two classes and provide their properties.  
-2) Classify: send a new object’s properties → get a predicted class.  
-3) Feedback: confirm/correct the prediction → the model updates itself.  
-4) Inspect/reset: view current state or reset to start over.
+This is a full-stack web application that allows users to classify objects into two categories based on their textual features. The system learns and improves in real-time from user feedback.
 
-> Built for demos: simple, stateless HTTP API by default; optional persistence can be added later.
+The project consists of a **Go** backend providing a REST API and a **React (TypeScript)** frontend. The entire stack, including a MySQL database, is containerized with Docker for easy setup and deployment.
 
----
+![App Screenshot](docs/readme.png)
 
-## 📸 Screenshot (placeholder)
+## 💡 Key Features
 
-![App screenshot](docs/readme.png)
+-   🧠 **Real-time Learning:** The system updates its knowledge base after every user-confirmed classification.
+-   ↔️ **Feature Separation:** Automatically identifies common properties shared between both classes, unique properties for each, and irrelevant ("none") properties.
+-   ⚙️ **Flexible Management:** The UI allows for adding, removing, moving, and renaming properties and classes on the fly.
+-   🚀 **Modern Stack:** Built with Go for the backend, React/Vite/TS for the frontend, and MySQL for persistence.
+-   🐳 **Fully Containerized:** The entire project runs with a single `docker-compose up` command.
 
-## Features
+## 🛠️ Tech Stack
 
-- 🧠 **Two-class recognition** with a transparent, rule-like approach on sets of properties.
-- 🔁 **Self-learning** from explicit user feedback (adds new properties to the confirmed class).
-- 🧩 **Explainable**: you can query the stored properties for both classes and “general” overlaps.
-- 🧪 **Simple HTTP API** for training, classifying, feedback, and state.
-- 🐳 **Docker-ready**; runs on `:8080`.
+-   **Backend:** Go, `net/http`, `go-sql-driver/mysql`
+-   **Frontend:** React, TypeScript, Vite, Nginx (for serving static files)
+-   **Database:** MySQL 8.0
+-   **DevOps:** Docker, Docker Compose
 
----
+## 🚀 Quick Start with Docker
 
-## Quick start
+This is the recommended way to run the project for demonstration or development. Ensure you have **Docker** and **Docker Compose** installed.
 
-### Prerequisites
-- Go 1.21+  
-- (Optional) Docker 24+
+1.  **Clone the repository:**
+    ```bash
+    git clone https://github.com/AntonKhPI2/self-learning-classifier.git
+    cd self-learning-classifier
+    ```
 
-### Clone
+2.  **Set up environment variables:**
+    Create a `.env` file by copying the example. The default values are already configured for local Docker development.
+    ```bash
+    cp .env.example .env
+    ```
+
+3.  **Launch the project:**
+    This command will build the images, start all containers, and set up the network.
+    ```bash
+    docker-compose up --build
+    ```
+
+4.  **Access the application:**
+    -   **Frontend:** [http://localhost:3000](http://localhost:3000)
+    -   **Backend API:** [http://localhost:8080](http://localhost:8080)
+
+## 🛠️ Local Development (Without Docker)
+
+If you prefer to run the services natively, you will need:
+- Go 1.22+
+- Node.js 20+
+- A running MySQL 8.0 instance
+
+### Backend
+
+1.  Navigate to the `Backend` directory:
+    ```bash
+    cd Backend
+    ```
+2.  Install dependencies:
+    ```bash
+    go mod tidy
+    ```
+3.  Set the required environment variables to connect to your MySQL instance. For example:
+    ```bash
+    export DB_HOST=127.0.0.1
+    export DB_PORT=3306
+    export DB_USER=your_user
+    export DB_PASSWORD=your_password
+    export DB_NAME=slc
+    ```
+4.  Run the server:
+    ```bash
+    go run ./cmd/api
+    ```
+    The backend will be available at `http://localhost:8080`.
+
+### Frontend
+
+1.  Navigate to the `Frontend` directory:
+    ```bash
+    cd Frontend/slc-frontend
+    ```
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+3.  Create a `.env.local` file and specify the backend API URL:
+    ```
+    VITE_API_URL=http://localhost:8080
+    ```
+4.  Run the development server:
+    ```bash
+    npm run dev
+    ```
+    The frontend will be available at `http://localhost:5173` (or another port specified by Vite).
+
+
+## 🧪 Testing
+
+The Go backend includes a suite of unit tests for handlers, services, and core logic. The tests use in-memory mocks for the repository to ensure isolation and speed.
+
+To run the tests, navigate to the `Backend` directory and execute:
 ```bash
-git clone https://github.com/AntonKhPI2/self-learning-classifier.git
-cd self-learning-classifier
+cd Backend
+go test -v ./...
 ```
 
-> **Module path:** ensure your `go.mod` uses  
-> `module github.com/AntonKhPI2/self-learning-classifier`  
-
-### Run (Go)
-```bash
-go mod tidy
-go run ./cmd/api
-# server: http://localhost:8080
-```
-
-### Run (Docker)
-```bash
-# build
-docker build -t slc-backend -f ./deploy/docker/Dockerfile .
-
-# run
-docker run --rm -p 8080:8080 --name slc-backend slc-backend
-```
-
-> If you use `docker compose`, add a service like:
-```yaml
-services:
-  backend:
-    build:
-      context: .
-      dockerfile: ./deploy/docker/Dockerfile
-    ports:
-      - "8080:8080"
-    environment:
-      - SLC_ADDR=:8080
-```
-
----
-
-## HTTP API
-
-Base URL: `http://localhost:8080/api/v1`
-
-All requests/answers are JSON. Examples use `curl`.
-
-### 1) Seed training
-Set **names** of the two classes and initial **properties**.
-
-`POST /api/v1/train/init`
-```json
-{
-  "class1": { "name": "Cat", "properties": ["whiskers", "purrs", "claws"] },
-  "class2": { "name": "Dog", "properties": ["barks", "tail", "fetch"] }
-}
-```
-Response `200 OK`:
-```json
-{ "ok": true }
-```
-
-> You can also set names first, then add properties incrementally:
-
-`POST /api/v1/train/names`
-```json
-{ "class1": "Cat", "class2": "Dog" }
-```
-
-`POST /api/v1/train/properties`
-```json
-{ "class": "Cat", "properties": ["whiskers", "purrs"] }
-```
-
-### 2) Classify
-`POST /api/v1/classify`
-```json
-{ "properties": ["tail", "fetch"] }
-```
-Response:
-```json
-{
-  "guess": "Dog",
-  "score": { "Cat": 0, "Dog": 2 },
-  "explanation": "Matched 2 property(ies) of Dog, 0 of Cat"
-}
-```
-
-### 3) Feedback (self-learning)
-Confirm/correct the last (or given) classification and let the system learn.
-
-`POST /api/v1/feedback`
-```json
-{
-  "correctClass": "Dog",
-  "properties": ["tail", "fetch"]
-}
-```
-Response:
-```json
-{ "ok": true, "updated": ["tail", "fetch"] }
-```
-
-### 4) Inspect state
-`GET /api/v1/state`
-```json
-{
-  "class1": { "name": "Cat", "properties": ["whiskers", "purrs", "claws"] },
-  "class2": { "name": "Dog", "properties": ["barks", "tail", "fetch"] },
-  "general": [],             // intersection (shared properties)
-  "noneClass": []            // user-marked properties that fit neither class
-}
-```
-
-### 5) Mark properties as “none”
-`POST /api/v1/none`
-```json
-{ "properties": ["unknown", "noise"] }
-```
-
-### 6) Reset
-`DELETE /api/v1/reset`
-```json
-{ "ok": true }
-```
-
----
-
-## Classification logic (overview)
-
-- Properties are treated case-sensitively (you can normalize in code if needed).
-- The service counts overlaps between input properties and each class’s property set.
-- If ties occur, the service can return an empty guess or a deterministic tie-break (depending on implementation).
-- **Feedback** appends previously unseen properties into the confirmed class.
-
----
-
-## Configuration
-
-Environment variables:
-
-| Variable     | Default  | Description                          |
-|--------------|----------|--------------------------------------|
-| `SLC_ADDR`   | `:8080`  | Listen address/port                  |
-| `SLC_LOG`    | `info`   | Log level (`debug`,`info`,`warn`)    |
-| `SLC_CORS`   | `*`      | Allowed CORS origin(s)               |
-
-You can add persistence (MySQL/Postgres/SQLite via GORM) by introducing envs like `DB_DSN` and swapping the in-memory store for a repository backed by the database.
-
----
-
-## Project structure
-
-> Reflects a conventional Go layout. Adjust to match your repo if needed.
-
+## 📁 Project Structure
 ```
 .
-├─ cmd/
-│  └─ api/
-│     └─ main.go            # wires routes, server
-├─ internal/
-│  ├─ handlers/             # HTTP handlers (train, classify, feedback, state)
-│  ├─ service/              # domain logic: sets, learning, validation
-│  ├─ models/               # class/state structs, DTOs
-│  └─ storage/              # in-memory store; optional GORM repo
-├─ pkg/
-│  └─ httpx/                # middleware, errors, respond helpers
-├─ deploy/
-│  └─ docker/
-│     └─ Dockerfile
-├─ go.mod
-└─ README.md
+├── Backend/                # Go Backend
+│   ├── cmd/api/            # Application entry point
+│   ├── internal/           # All business logic
+│   └── ...
+├── Frontend/
+│   └── slc-frontend/       # React Application
+│       ├── src/            # Frontend source code
+│       └── ...
+├── docs/                   # Documentation and assets
+├── .env.example            # Example environment file
+└── docker-compose.yml      # Orchestration file for all services
 ```
+## ⚙️ Configuration
 
-**go.mod**
-```go
-module github.com/AntonKhPI2/self-learning-classifier
+The application is configured using environment variables. See .env.example for a complete list. Key variables include:
 
-go 1.21
+| Variable | Default | Description |
+| ------------------- | ----------------------- | ---------------------------------------------- |
+| `\DB_HOST` | `db` | Hostname of the MySQL database service. |`
+| `\DB_USER` | `slc` | MySQL user. |`
+| `\MYSQL_PASSWORD` | `slcpass` | Password for the MySQL user. |`
+| `\DB_NAME` | `self-learning-classifier`| Name of the database. |`
+| `\BACKEND_PORT` | `8080` | Port on which the Go backend listens. |`
+| `\FRONTEND_PORT` | `3000` | Port on which the Nginx frontend is exposed. |`
+| `\VITE_API_URL` | `http://localhost:8080\` | URL of the backend API for the frontend to use.|`
 
-require (
-    // add dependencies as needed
-)
-```
+## 📚 API Endpoints
 
----
+Base URL: /api/v1
 
-## Development
-
-### Run tests
-```bash
-go test ./...
-```
-
-### Lint (example with golangci-lint)
-```bash
-golangci-lint run
-```
-
-### Makefile (optional)
-```makefile
-run:
-     go run ./cmd/api
-
-build:
-     go build -o bin/slc ./cmd/api
-
-test:
-     go test ./...
-```
-
----
-
-## Docker tips
-
-- If you see `"/go.sum": not found`, run `go mod tidy` locally first or ensure your Dockerfile copies `go.mod` **and** `go.sum` (generate it once locally).
-- Example minimal Dockerfile:
-
-```dockerfile
-# --- build
-FROM golang:1.21-alpine AS build
-WORKDIR /app
-COPY go.mod go.sum ./
-RUN go mod download
-COPY . .
-RUN CGO_ENABLED=0 go build -o slc ./cmd/api
-
-# --- run
-FROM alpine:3.20
-WORKDIR /app
-COPY --from=build /app/slc /usr/local/bin/slc
-ENV SLC_ADDR=:8080
-EXPOSE 8080
-CMD ["slc"]
-```
-
----
-
-## Roadmap
-
-- [ ] Persistence via GORM (SQLite by default; MySQL/Postgres optional).
-- [ ] Confidence scores and tie-breaking strategy toggle.
-- [ ] Stop-word filtering / basic normalization.
-- [ ] Simple React UI (form to seed/train, classify, and inspect).
-- [ ] Export/import state (JSON).
-
----
+| Method | Path | Description |
+|:-------| :------------------- | :--------------------------------------------- |
+| `\POST`  | `/init` | Initializes the classes and their seed properties. |`
+| `\POST`  | `/reset` | Resets the state for the current user. |`
+| `\POST`  | `/classify` | Classifies a given set of properties. |`
+| `\POST`  | `/feedback` | Provides feedback to train the model. |`
+| `\GET`  | `/state` | Retrieves the current state of the classifier. |`
+| `\POST` | `/prop/add` | Adds a new property to a specific area. |`
+| `\POST` | `/prop/remove` | Removes a property from a specific area. |`
+| `\POST` | `/prop/move` | Moves a property between areas. |`
+| `\POST` | `/prop/rename` | Renames a property within an area or globally. |`
+| `\POST` | `/classes/rename` | Renames a class. |`
+| `\GET`  | `/status` | Health check endpoint. |`

@@ -1,16 +1,18 @@
 FROM golang:1.22-alpine AS build
-WORKDIR /app
-RUN apk add --no-cache git
+WORKDIR /src
+
 COPY go.mod go.sum ./
 RUN go mod download
+
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o server ./cmd/api
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/slc ./cmd/api
+
 FROM alpine:3.20
-RUN adduser -D -g '' app && apk add --no-cache ca-certificates tzdata
+RUN adduser -D -g '' app && apk add --no-cache ca-certificates wget
 USER app
 WORKDIR /app
-COPY --from=build /app/server /app/server
-COPY .env.example /app/.env.example
+
+COPY --from=build /app/slc /usr/local/bin/slc
 EXPOSE 8080
 ENV GIN_MODE=release
-CMD ["/app/server"]
+CMD ["slc"]
