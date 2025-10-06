@@ -1,7 +1,6 @@
 # Self-Learning Classifier
 
 [![Go Version](https://img.shields.io/badge/go-1.22-blue.svg)](https://go.dev)
-[![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Built with](https://img.shields.io/badge/Built%20with-React%20%26%20Go-cyan.svg)](#tech-stack)
 
 This is a full-stack web application that allows users to classify objects into two categories based on their textual features. The system learns and improves in real-time from user feedback.
