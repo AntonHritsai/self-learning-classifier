@@ -8,7 +8,7 @@ COPY . .
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /app/slc ./cmd/api
 
 FROM alpine:3.20
-RUN adduser -D -g '' app && apk add --no-cache ca-certificates wget
+RUN adduser -D -g '' app && apk add --no-cache ca-certificates curl
 USER app
 WORKDIR /app
 
