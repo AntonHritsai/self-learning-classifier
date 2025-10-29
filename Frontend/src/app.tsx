@@ -10,9 +10,8 @@ type ClassifyAny = Record<string, any>;
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
 const V1 = `${API}/api/v1`;
-const RESET_ON_RELOAD = false; // ★ было true — провоцировало /init с пустыми именами
+const RESET_ON_RELOAD = false; 
 
-// ★ стабильный uid + общий fetch-хелпер с X-User-ID
 const UID = (() => {
     const k = "slc_uid";
     let v = localStorage.getItem(k);
@@ -45,10 +44,8 @@ export default function App() {
 
     const didPrefillNamesRef = useRef(false);
 
-    // ★ УБРАН resetBackend() с пустыми именами — больше не дергаем /init дважды с 400
     async function load() {
         try {
-            setLoading(true);
             setErr("");
             const res = await api(`/state`);
             if (!res.ok) throw new Error(`/api/v1/state -> ${res.status}`);
@@ -72,7 +69,6 @@ export default function App() {
             const t = setInterval(load, 4000);
             return () => clearInterval(t);
         })();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const allProps = useMemo(() => {
