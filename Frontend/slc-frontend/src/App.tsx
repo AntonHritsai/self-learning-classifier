@@ -304,8 +304,6 @@ export default function App() {
       <header className="py-3 mb-4 border-bottom bg-light">
         <div className="container d-flex flex-wrap justify-content-center">
           <a href="/" className="d-flex align-items-center mb-3 mb-lg-0 me-lg-auto text-dark text-decoration-none">
-            <p className="text-sm text-gray-600">API: <code>{V1}</code></p>
-            <p className="text-sm text-gray-600">User: <code>{UID}</code></p>
             <span className="fs-4">Self-Learning Classifier</span>
           </a>
         </div>
