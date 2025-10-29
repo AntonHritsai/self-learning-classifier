@@ -8,25 +8,11 @@ type Snapshot = {
 };
 type ClassifyAny = Record<string, any>;
 
-const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
-const V1 = `${API}/api/v1`;
 const RESET_ON_RELOAD = false;
-
-// Персистентный UID через localStorage, чтобы совпадал с бэкендом
-const UID = (() => {
-  const k = "slc_uid";
-  let v = localStorage.getItem(k);
-  if (!v) {
-    v = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    localStorage.setItem(k, v);
-  }
-  return v;
-})();
 
 async function api(path: string, init?: RequestInit) {
   const h = new Headers(init?.headers || {});
-  h.set("X-User-ID", UID);
-  return fetch(`${V1}${path}`, { ...init, headers: h });
+  return fetch(`/api/v1${path}`, { ...init, headers: h });
 }
 
 const uniqSorted = (arr: string[]) =>
@@ -50,7 +36,6 @@ export default function App() {
   const [prediction, setPrediction] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  // --- Управление свойствами / классами ---
   const [addArea, setAddArea] = useState<"class1" | "class2" | "general" | "none">("class1");
   const [addProp, setAddProp] = useState("");
 
@@ -99,7 +84,6 @@ export default function App() {
       const t = setInterval(load, 4000);
       return () => clearInterval(t);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const allProps = useMemo(() => {
@@ -194,8 +178,6 @@ export default function App() {
       setBusy(false);
     }
   }
-
-  // --- Управляющие действия (reset/add/remove/move/rename prop, rename class) ---
 
   async function onReset() {
     try {
@@ -316,197 +298,240 @@ export default function App() {
   const c2Name = snap?.class2?.name || c2 || "Class 2";
 
   return (
-    <div style={page}>
-      <div style={shell}>
-        <header style={header}>
-          <div>
-            <h1 style={{ margin: 0, fontSize: 22 }}>Self-Learning Classifier — UI</h1>
-            <div style={{ color: "#6b7280", fontSize: 13 }}>
-              API: <code>{V1}</code> • User: <code>{UID}</code>
+    <div className="bg-dark text-light min-vh-100">
+      <header className="py-3 mb-4 border-bottom bg-light">
+        <div className="container d-flex flex-wrap justify-content-center">
+          <a href="/" className="d-flex align-items-center mb-3 mb-lg-0 me-lg-auto text-dark text-decoration-none">
+            <span className="fs-4">Self-Learning Classifier</span>
+          </a>
+        </div>
+      </header>
+
+      <div className="container" role="main">
+        <div className="row">
+          <div className="col-lg-6 mb-4">
+            <div className="card">
+              <div className="card-body">
+                <h2 className="card-title">Init (names + properties)</h2>
+                <div className="row g-3">
+                  <div className="col-md-6">
+                    <label className="form-label">Class 1 name</label>
+                    <input placeholder="Class 1 name" value={c1} onChange={(e) => setC1(e.target.value)} className="form-control"/>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Class 1 properties</label>
+                    <input placeholder="comma or space separated" value={c1Props} onChange={(e) => setC1Props(e.target.value)} className="form-control"/>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Class 2 name</label>
+                    <input placeholder="Class 2 name" value={c2} onChange={(e) => setC2(e.target.value)} className="form-control"/>
+                  </div>
+                  <div className="col-md-6">
+                    <label className="form-label">Class 2 properties</label>
+                    <input placeholder="comma or space separated" value={c2Props} onChange={(e) => setC2Props(e.target.value)} className="form-control"/>
+                  </div>
+                  <div className="col-12">
+                    <button type="button" onClick={onInit} disabled={busy || !c1.trim() || !c2.trim()} className="btn btn-primary">
+                      Init
+                    </button>
+                    <button type="button" onClick={onReset} disabled={busy} className="btn btn-outline-secondary ms-2">
+                      Reset (user state)
+                    </button>
+                  </div>
+                </div>
+                {loading && <p className="mt-3">Loading…</p>}
+                {err && <p className="mt-3 text-danger">{err}</p>}
+              </div>
             </div>
           </div>
-        </header>
 
-        <main style={main}>
-          {/* INIT */}
-          <section style={panel}>
-            <h2 style={h2}>Init (names + properties)</h2>
-            <div style={formGrid}>
-              <div style={field}>
-                <label style={label}>Class 1 name</label>
-                <input placeholder="Class 1 name" value={c1} onChange={(e) => setC1(e.target.value)} style={inputStyle}/>
-              </div>
-              <div style={field}>
-                <label style={label}>Class 1 properties</label>
-                <input placeholder="comma or space separated" value={c1Props} onChange={(e) => setC1Props(e.target.value)} style={inputStyle}/>
-              </div>
-              <div style={field}>
-                <label style={label}>Class 2 name</label>
-                <input placeholder="Class 2 name" value={c2} onChange={(e) => setC2(e.target.value)} style={inputStyle}/>
-              </div>
-              <div style={field}>
-                <label style={label}>Class 2 properties</label>
-                <input placeholder="comma or space separated" value={c2Props} onChange={(e) => setC2Props(e.target.value)} style={inputStyle}/>
-              </div>
-              <div style={{ gridColumn: "1 / -1", display: "flex", gap: 8 }}>
-                <button type="button" onClick={onInit} disabled={busy || !c1.trim() || !c2.trim()} style={btnPrimary}>
-                  Init
-                </button>
-                <button type="button" onClick={onReset} disabled={busy} style={btnOutline}>
-                  Reset (user state)
-                </button>
-              </div>
-            </div>
-            {loading && <p>Loading…</p>}
-            {err && <p style={{ color: "crimson" }}>{err}</p>}
-          </section>
-
-          {/* PROPERTIES TABLE */}
-          <section style={{ ...panel, overflow: "hidden" }}>
-            <h2 style={h2}>Properties</h2>
-            <div style={tableWrap}>
-              <table style={table}>
-                <thead>
-                  <tr style={{ background: "#f3f4f6" }}>
-                    <th style={th}>Property</th>
-                    <th style={th}>{snap?.class1?.name ?? "Class 1"}</th>
-                    <th style={th}>{snap?.class2?.name ?? "Class 2"}</th>
-                    <th style={th}>General</th>
-                    <th style={th}>None</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allProps.map((p) => (
-                    <tr key={p}>
-                      <td style={{ ...td, fontWeight: 600 }}>{p}</td>
-                      <td style={td}>{has(snap?.class1?.properties, p)}</td>
-                      <td style={td}>{has(snap?.class2?.properties, p)}</td>
-                      <td style={td}>{has(snap?.generalClass, p)}</td>
-                      <td style={td}>{has(snap?.noneClass, p)}</td>
-                    </tr>
-                  ))}
-                  {!allProps.length && (
-                    <tr>
-                      <td style={td} colSpan={5}>No properties yet</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          </section>
-
-          {/* MANAGE (ADD/REMOVE/MOVE/RENAME) */}
-          <section style={panel}>
-            <h2 style={h2}>Manage</h2>
-
-            {/* Add property */}
-            <div style={manageRow}>
-              <b style={{ minWidth: 110 }}>Add property</b>
-              <select value={addArea} onChange={(e) => setAddArea(e.target.value as any)} style={selectStyle}>
-                <option value="class1">{snap?.class1?.name || "Class 1"}</option>
-                <option value="class2">{snap?.class2?.name || "Class 2"}</option>
-                <option value="general">General</option>
-                <option value="none">None</option>
-              </select>
-              <input placeholder="property" value={addProp} onChange={(e) => setAddProp(e.target.value)} style={{ ...inputStyle, flex: 1 }}/>
-              <button onClick={onAddProp} disabled={busy || !addProp.trim()} style={btnPrimary}>Add</button>
-            </div>
-
-            {/* Remove property */}
-            <div style={manageRow}>
-              <b style={{ minWidth: 110 }}>Remove property</b>
-              <select value={remArea} onChange={(e) => setRemArea(e.target.value as any)} style={selectStyle}>
-                <option value="class1">{snap?.class1?.name || "Class 1"}</option>
-                <option value="class2">{snap?.class2?.name || "Class 2"}</option>
-                <option value="general">General</option>
-                <option value="none">None</option>
-              </select>
-              <input placeholder="property" value={remProp} onChange={(e) => setRemProp(e.target.value)} style={{ ...inputStyle, flex: 1 }}/>
-              <button onClick={onRemoveProp} disabled={busy || !remProp.trim()} style={btnPrimary}>Remove</button>
-            </div>
-
-            {/* Move property */}
-            <div style={manageRow}>
-              <b style={{ minWidth: 110 }}>Move property</b>
-              <select value={mvFrom} onChange={(e) => setMvFrom(e.target.value as any)} style={selectStyle}>
-                <option value="class1">{snap?.class1?.name || "Class 1"}</option>
-                <option value="class2">{snap?.class2?.name || "Class 2"}</option>
-                <option value="general">General</option>
-                <option value="none">None</option>
-              </select>
-              <span style={{ alignSelf: "center" }}>→</span>
-              <select value={mvTo} onChange={(e) => setMvTo(e.target.value as any)} style={selectStyle}>
-                <option value="class1">{snap?.class1?.name || "Class 1"}</option>
-                <option value="class2">{snap?.class2?.name || "Class 2"}</option>
-                <option value="general">General</option>
-                <option value="none">None</option>
-              </select>
-              <input placeholder="property" value={mvProp} onChange={(e) => setMvProp(e.target.value)} style={{ ...inputStyle, flex: 1 }}/>
-              <button onClick={onMoveProp} disabled={busy || !mvProp.trim() || mvFrom === mvTo} style={btnPrimary}>Move</button>
-            </div>
-
-            {/* Rename property */}
-            <div style={manageRow}>
-              <b style={{ minWidth: 110 }}>Rename property</b>
-              <select value={rpArea} onChange={(e) => setRpArea(e.target.value as any)} style={selectStyle}>
-                <option value="class1">{snap?.class1?.name || "Class 1"}</option>
-                <option value="class2">{snap?.class2?.name || "Class 2"}</option>
-                <option value="general">General</option>
-                <option value="none">None</option>
-                <option value="all">All zones</option>
-              </select>
-              <input placeholder="from" value={rpFrom} onChange={(e) => setRpFrom(e.target.value)} style={{ ...inputStyle, flex: 1 }}/>
-              <span style={{ alignSelf: "center" }}>→</span>
-              <input placeholder="to" value={rpTo} onChange={(e) => setRpTo(e.target.value)} style={{ ...inputStyle, flex: 1 }}/>
-              <button onClick={onRenameProp} disabled={busy || !rpFrom.trim() || !rpTo.trim() || rpFrom.trim() === rpTo.trim()} style={btnPrimary}>Rename</button>
-            </div>
-
-            {/* Rename class */}
-            <div style={manageRow}>
-              <b style={{ minWidth: 110 }}>Rename class</b>
-              <select value={rnClass} onChange={(e) => setRnClass(e.target.value as any)} style={selectStyle}>
-                <option value="class1">{snap?.class1?.name || "Class 1"}</option>
-                <option value="class2">{snap?.class2?.name || "Class 2"}</option>
-              </select>
-              <input placeholder="new name" value={rnName} onChange={(e) => setRnName(e.target.value)} style={{ ...inputStyle, flex: 1 }}/>
-              <button onClick={onRenameClass} disabled={busy || !rnName.trim()} style={btnPrimary}>Rename</button>
-            </div>
-          </section>
-
-          {/* CLASSIFY */}
-          <section style={panel}>
-            <h2 style={h2}>Classify</h2>
-            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-              <input
-                placeholder="Enter properties separated by spaces or commas"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                style={{ ...inputStyle, flex: 1 }}
-              />
-              <button onClick={onClassify} disabled={!inputList.length || busy} style={btnPrimary}>
-                Classify
-              </button>
-            </div>
-
-            {prediction && (
-              <div style={card}>
-                <h3 style={{ marginTop: 0, marginBottom: 6 }}>Prediction</h3>
-                <PredictionView jsonString={prediction} />
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-                  <button onClick={() => sendFeedback("class1")} disabled={busy} style={btnPrimary}>
-                    It is {c1Name}
-                  </button>
-                  <button onClick={() => sendFeedback("class2")} disabled={busy} style={btnPrimary}>
-                    It is {c2Name}
-                  </button>
-                  <button onClick={() => sendFeedback("none")} disabled={busy} style={btnOutline}>
-                    None class
-                  </button>
+          <div className="col-lg-6 mb-4">
+            <div className="card h-100">
+              <div className="card-body">
+                <h2 className="card-title">Properties</h2>
+                <div className="table-responsive">
+                  <table className="table table-striped table-bordered">
+                    <thead>
+                      <tr>
+                        <th>Property</th>
+                        <th>{snap?.class1?.name ?? "Class 1"}</th>
+                        <th>{snap?.class2?.name ?? "Class 2"}</th>
+                        <th>General</th>
+                        <th>None</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {allProps.map((p) => (
+                        <tr key={p}>
+                          <td>{p}</td>
+                          <td>{has(snap?.class1?.properties, p)}</td>
+                          <td>{has(snap?.class2?.properties, p)}</td>
+                          <td>{has(snap?.generalClass, p)}</td>
+                          <td>{has(snap?.noneClass, p)}</td>
+                        </tr>
+                      ))}
+                      {!allProps.length && (
+                        <tr>
+                          <td colSpan={5} className="text-center">No properties yet</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            )}
-          </section>
-        </main>
+            </div>
+          </div>
+
+          <div className="col-12 mb-4">
+            <div className="card">
+              <div className="card-body">
+                <h2 className="card-title">Classify</h2>
+                <div className="input-group mb-3">
+                  <input
+                    placeholder="Enter properties separated by spaces or commas"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    className="form-control"
+                  />
+                  <button onClick={onClassify} disabled={!inputList.length || busy} className="btn btn-primary">
+                    Classify
+                  </button>
+                </div>
+
+                {prediction && (
+                  <div className="card bg-light">
+                    <div className="card-body">
+                      <h3 className="card-title">Prediction</h3>
+                      <PredictionView jsonString={prediction} />
+                      <div className="mt-3">
+                        <button onClick={() => sendFeedback("class1")} disabled={busy} className="btn btn-primary me-2">
+                          It is {c1Name}
+                        </button>
+                        <button onClick={() => sendFeedback("class2")} disabled={busy} className="btn btn-primary me-2">
+                          It is {c2Name}
+                        </button>
+                        <button onClick={() => sendFeedback("none")} disabled={busy} className="btn btn-outline-secondary">
+                          None class
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="col-12 mb-4">
+            <div className="card">
+              <div className="card-body">
+                <h2 className="card-title">Manage</h2>
+                <div className="vstack gap-3">
+                  <div className="row g-2 align-items-center">
+                    <div className="col-sm-2"><b>Add property</b></div>
+                    <div className="col-sm">
+                      <select value={addArea} onChange={(e) => setAddArea(e.target.value as any)} className="form-select">
+                        <option value="class1">{snap?.class1?.name || "Class 1"}</option>
+                        <option value="class2">{snap?.class2?.name || "Class 2"}</option>
+                        <option value="general">General</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div className="col-sm">
+                      <input placeholder="property" value={addProp} onChange={(e) => setAddProp(e.target.value)} className="form-control"/>
+                    </div>
+                    <div className="col-sm-auto">
+                      <button onClick={onAddProp} disabled={busy || !addProp.trim()} className="btn btn-primary w-100">Add</button>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 align-items-center">
+                    <div className="col-sm-2"><b>Remove property</b></div>
+                    <div className="col-sm">
+                      <select value={remArea} onChange={(e) => setRemArea(e.target.value as any)} className="form-select">
+                        <option value="class1">{snap?.class1?.name || "Class 1"}</option>
+                        <option value="class2">{snap?.class2?.name || "Class 2"}</option>
+                        <option value="general">General</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div className="col-sm">
+                      <input placeholder="property" value={remProp} onChange={(e) => setRemProp(e.target.value)} className="form-control"/>
+                    </div>
+                    <div className="col-sm-auto">
+                      <button onClick={onRemoveProp} disabled={busy || !remProp.trim()} className="btn btn-primary w-100">Remove</button>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 align-items-center">
+                    <div className="col-sm-2"><b>Move property</b></div>
+                    <div className="col-sm">
+                      <select value={mvFrom} onChange={(e) => setMvFrom(e.target.value as any)} className="form-select">
+                        <option value="class1">{snap?.class1?.name || "Class 1"}</option>
+                        <option value="class2">{snap?.class2?.name || "Class 2"}</option>
+                        <option value="general">General</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div className="col-auto">→</div>
+                    <div className="col-sm">
+                      <select value={mvTo} onChange={(e) => setMvTo(e.target.value as any)} className="form-select">
+                        <option value="class1">{snap?.class1?.name || "Class 1"}</option>
+                        <option value="class2">{snap?.class2?.name || "Class 2"}</option>
+                        <option value="general">General</option>
+                        <option value="none">None</option>
+                      </select>
+                    </div>
+                    <div className="col-sm">
+                      <input placeholder="property" value={mvProp} onChange={(e) => setMvProp(e.target.value)} className="form-control"/>
+                    </div>
+                    <div className="col-sm-auto">
+                      <button onClick={onMoveProp} disabled={busy || !mvProp.trim() || mvFrom === mvTo} className="btn btn-primary w-100">Move</button>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 align-items-center">
+                    <div className="col-sm-2"><b>Rename property</b></div>
+                    <div className="col-sm">
+                      <select value={rpArea} onChange={(e) => setRpArea(e.target.value as any)} className="form-select">
+                        <option value="class1">{snap?.class1?.name || "Class 1"}</option>
+                        <option value="class2">{snap?.class2?.name || "Class 2"}</option>
+                        <option value="general">General</option>
+                        <option value="none">None</option>
+                        <option value="all">All zones</option>
+                      </select>
+                    </div>
+                    <div className="col-sm">
+                      <input placeholder="from" value={rpFrom} onChange={(e) => setRpFrom(e.target.value)} className="form-control"/>
+                    </div>
+                     <div className="col-auto">→</div>
+                    <div className="col-sm">
+                      <input placeholder="to" value={rpTo} onChange={(e) => setRpTo(e.target.value)} className="form-control"/>
+                    </div>
+                    <div className="col-sm-auto">
+                      <button onClick={onRenameProp} disabled={busy || !rpFrom.trim() || !rpTo.trim() || rpFrom.trim() === rpTo.trim()} className="btn btn-primary w-100">Rename</button>
+                    </div>
+                  </div>
+
+                  <div className="row g-2 align-items-center">
+                    <div className="col-sm-2"><b>Rename class</b></div>
+                    <div className="col-sm">
+                      <select value={rnClass} onChange={(e) => setRnClass(e.target.value as any)} className="form-select">
+                        <option value="class1">{snap?.class1?.name || "Class 1"}</option>
+                        <option value="class2">{snap?.class2?.name || "Class 2"}</option>
+                      </select>
+                    </div>
+                    <div className="col-sm">
+                      <input placeholder="new name" value={rnName} onChange={(e) => setRnName(e.target.value)} className="form-control"/>
+                    </div>
+                    <div className="col-sm-auto">
+                      <button onClick={onRenameClass} disabled={busy || !rnName.trim()} className="btn btn-primary w-100">Rename</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -517,7 +542,7 @@ function PredictionView({ jsonString }: { jsonString: string }) {
     const obj = JSON.parse(jsonString);
     const hasAnything =
       obj.guess || obj.reason || (obj.knownHits?.length ?? 0) || (obj.unknown?.length ?? 0);
-    if (!hasAnything) return <pre style={pre}>{jsonString}</pre>;
+    if (!hasAnything) return <pre className="bg-light p-2 rounded">{jsonString}</pre>;
     return (
       <div>
         <p><b>Guess:</b> {obj.guess || "—"}</p>
@@ -528,39 +553,10 @@ function PredictionView({ jsonString }: { jsonString: string }) {
         {Array.isArray(obj.unknown) && obj.unknown.length > 0 && (
           <p><b>Unknown properties:</b> {obj.unknown.join(", ")}</p>
         )}
-        {obj.recommendation && <p style={{ color: "#6b7280" }}>{obj.recommendation}</p>}
+        {obj.recommendation && <p className="text-muted">{obj.recommendation}</p>}
       </div>
     );
   } catch {
-    return <pre style={pre}>{jsonString}</pre>;
+    return <pre className="bg-light p-2 rounded">{jsonString}</pre>;
   }
 }
-
-// --- styles ---
-const page: React.CSSProperties = {
-  minHeight: "100vh",
-  width: "100vw",
-  overflow: "hidden",
-  background: "#0f172a",
-  color: "#111827",
-  fontFamily: "ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif",
-};
-const shell: React.CSSProperties = { height: "100vh", width: "100%", display: "flex", flexDirection: "column" };
-const header: React.CSSProperties = { padding: "14px 20px", borderBottom: "1px solid #e5e7eb", background: "#ffffff" };
-const main: React.CSSProperties = { flex: 1, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, padding: 16, overflow: "auto" };
-const panel: React.CSSProperties = { background: "#ffffff", border: "1px solid #e5e7eb", borderRadius: 14, padding: 14, minHeight: 0 };
-const h2: React.CSSProperties = { margin: "0 0 8px 0", fontSize: 18 };
-const formGrid: React.CSSProperties = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, alignItems: "start" };
-const field: React.CSSProperties = { display: "grid", gap: 6 };
-const label: React.CSSProperties = { fontSize: 13, color: "#374151" };
-const tableWrap: React.CSSProperties = { height: "calc(100% - 36px)", overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 12 };
-const table: React.CSSProperties = { width: "100%", borderCollapse: "collapse" };
-const th: React.CSSProperties = { textAlign: "left", padding: "10px 12px", borderBottom: "1px solid #e5e7eb", position: "sticky", top: 0, background: "#f9fafb", zIndex: 1 };
-const td: React.CSSProperties = { padding: "10px 12px", borderBottom: "1px solid #f3f4f6" };
-const inputStyle: React.CSSProperties = { padding: "10px 12px", borderRadius: 10, border: "1px solid #d1d5db", width: "100%", boxSizing: "border-box" };
-const selectStyle: React.CSSProperties = { ...inputStyle, width: 160 };
-const btnPrimary: React.CSSProperties = { padding: "10px 14px", borderRadius: 10, border: "1px solid #111827", background: "#111827", color: "#fff", cursor: "pointer" };
-const btnOutline: React.CSSProperties = { padding: "10px 14px", borderRadius: 10, border: "1px solid #9ca3af", background: "#fff", color: "#111827", cursor: "pointer" };
-const card: React.CSSProperties = { marginTop: 12, padding: 12, border: "1px solid #e5e7eb", borderRadius: 12, background: "#fff" };
-const pre: React.CSSProperties = { margin: 0, padding: 10, background: "#f8fafc", borderRadius: 8, overflowX: "auto" };
-const manageRow: React.CSSProperties = { display: "flex", gap: 8, alignItems: "center", marginBottom: 10 };

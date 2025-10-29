@@ -57,10 +57,12 @@ func main() {
 	}
 
 	mux := handler.NewHTTPMux(repo)
+	allowedOrigin := envOr("ALLOWED_ORIGIN", "*")
+	corsMiddleware := handler.CORS(allowedOrigin)
 
 	srv := &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           corsMiddleware(mux),
 		ReadTimeout:       10 * time.Second,
 		ReadHeaderTimeout: 5 * time.Second,
 		WriteTimeout:      15 * time.Second,
@@ -68,7 +70,7 @@ func main() {
 	}
 
 	go func() {
-		log.Printf("→ HTTP server listening on http://localhost%s", addr)
+		log.Printf("→ HTTP server listening on %s", addr)
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server error: %v", err)
 		}
