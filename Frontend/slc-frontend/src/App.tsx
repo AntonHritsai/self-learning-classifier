@@ -1,26 +1,31 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 type Snapshot = {
-  class1: { name: string; properties: string[] };
-  class2: { name: string; properties: string[] };
-  generalClass: string[];
-  noneClass: string[];
+    class1: { name: string; properties: string[] };
+    class2: { name: string; properties: string[] };
+    generalClass: string[];
+    noneClass: string[];
 };
 type ClassifyAny = Record<string, any>;
 
-const RESET_ON_RELOAD = false;
+const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
+const V1 = `${API}/api/v1`;
 
+const UID = (() => {
+    const k = "slc_uid";
+    let v = localStorage.getItem(k);
+    if (!v) { v = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(k, v); }
+    return v;
+})();
 async function api(path: string, init?: RequestInit) {
-  const h = new Headers(init?.headers || {});
-  return fetch(`/api/v1${path}`, { ...init, headers: h });
+    const h = new Headers(init?.headers || {});
+    h.set("X-User-ID", UID);
+    return fetch(`${V1}${path}`, { ...init, headers: h });
 }
 
-const uniqSorted = (arr: string[]) =>
-  Array.from(new Set(arr)).sort((a, b) => a.localeCompare(b));
-const has = (list: string[] | undefined, p: string) =>
-  Array.isArray(list) && list.includes(p) ? "✓" : "";
-const parseProps = (s: string) =>
-  s.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
+const uniqSorted = (arr: string[]) => Array.from(new Set(arr)).sort((a, b) => a.localeCompare(b));
+const has = (list: string[] | undefined, p: string) => (Array.isArray(list) && list.includes(p) ? "✓" : "");
+const parseProps = (s: string) => s.split(/[\s,]+/).map(x => x.trim()).filter(Boolean);
 
 export default function App() {
   const [snap, setSnap] = useState<Snapshot | null>(null);
@@ -77,14 +82,11 @@ export default function App() {
 
   useEffect(() => {
     (async () => {
-      if (RESET_ON_RELOAD) {
-        try { await api(`/reset`, { method: "POST" }); } catch {}
-      }
       await load();
       const t = setInterval(load, 4000);
       return () => clearInterval(t);
     })();
-  }, []);
+  }, [c1, c2]);
 
   const allProps = useMemo(() => {
     if (!snap) return [];
@@ -113,7 +115,7 @@ export default function App() {
           class2: { name: c2.trim(), properties: parseProps(c2Props) },
         }),
       });
-      if (!res.ok) throw new Error(`/api/v1/init -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/init -> ${res.status}`);
       setPrediction(null);
       await load();
     } catch (e: any) {
@@ -132,7 +134,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ properties: inputList }),
       });
-      if (!res.ok) throw new Error(`/api/v1/classify -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/classify -> ${res.status}`);
       const data: ClassifyAny = await res.json();
       const guess =
         data.predicted ?? data.guess ?? data.class ?? data.result ?? null;
@@ -168,7 +170,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ variant, properties: inputList }),
       });
-      if (!res.ok) throw new Error(`/api/v1/feedback -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/feedback -> ${res.status}`);
       setPrediction(null);
       setInput("");
       await load();
@@ -183,7 +185,7 @@ export default function App() {
     try {
       setBusy(true);
       const res = await api(`/reset`, { method: "POST" });
-      if (!res.ok) throw new Error(`/api/v1/reset -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/reset -> ${res.status}`);
       await load();
     } catch (e: any) {
       alert(e?.message ?? String(e));
@@ -202,7 +204,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ area: addArea, property: p }),
       });
-      if (!res.ok) throw new Error(`/api/v1/prop/add -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/prop/add -> ${res.status}`);
       setAddProp("");
       await load();
     } catch (e: any) {
@@ -222,7 +224,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ area: remArea, property: p }),
       });
-      if (!res.ok) throw new Error(`/api/v1/prop/remove -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/prop/remove -> ${res.status}`);
       setRemProp("");
       await load();
     } catch (e: any) {
@@ -242,7 +244,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ from: mvFrom, to: mvTo, property: p }),
       });
-      if (!res.ok) throw new Error(`/api/v1/prop/move -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/prop/move -> ${res.status}`);
       setMvProp("");
       await load();
     } catch (e: any) {
@@ -263,7 +265,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ area: rpArea, from, to }),
       });
-      if (!res.ok) throw new Error(`/api/v1/prop/rename -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/prop/rename -> ${res.status}`);
       setRpFrom("");
       setRpTo("");
       await load();
@@ -284,7 +286,7 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ class: rnClass, name }),
       });
-      if (!res.ok) throw new Error(`/api/v1/classes/rename -> ${res.status}: ${await res.text()}`);
+      if (!res.ok) throw new Error(`/api/v1/classes/rename -> ${res.status}`);
       setRnName("");
       await load();
     } catch (e: any) {
@@ -302,6 +304,8 @@ export default function App() {
       <header className="py-3 mb-4 border-bottom bg-light">
         <div className="container d-flex flex-wrap justify-content-center">
           <a href="/" className="d-flex align-items-center mb-3 mb-lg-0 me-lg-auto text-dark text-decoration-none">
+            <p className="text-sm text-gray-600">API: <code>{V1}</code></p>
+            <p className="text-sm text-gray-600">User: <code>{UID}</code></p>
             <span className="fs-4">Self-Learning Classifier</span>
           </a>
         </div>
@@ -339,7 +343,7 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                {loading && <p className="mt-3">Loading…</p>}
+                {loading && <p className="mt-3">Loading...</p>}
                 {err && <p className="mt-3 text-danger">{err}</p>}
               </div>
             </div>
