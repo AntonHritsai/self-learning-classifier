@@ -85,7 +85,7 @@ export default function App() {
       const t = setInterval(load, 4000);
       return () => clearInterval(t);
     })();
-  }, [c1, c2]);
+  }, []);
 
   const allProps = useMemo(() => {
     if (!snap) return [];
