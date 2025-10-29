@@ -5,6 +5,10 @@ import App from './App';
 
 describe('App', () => {
   beforeEach(() => {
+    vi.stubGlobal('localStorage', {
+      getItem: () => 'test-uid',
+      setItem: vi.fn(),
+    });
     vi.stubGlobal(
       'fetch',
       vi.fn(() =>
@@ -53,7 +57,7 @@ describe('App', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      '/api/v1/init',
+      expect.stringContaining('/api/v1/init'),
       expect.any(Object)
     );
   });
@@ -77,7 +81,7 @@ describe('App', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      '/api/v1/classify',
+      expect.stringContaining('/api/v1/classify'),
       expect.any(Object)
     );
   });
@@ -107,7 +111,7 @@ describe('App', () => {
     });
 
     expect(fetch).toHaveBeenCalledWith(
-      '/api/v1/feedback',
+      expect.stringContaining('/api/v1/feedback'),
       expect.any(Object)
     );
   });
