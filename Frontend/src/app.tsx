@@ -10,7 +10,6 @@ type ClassifyAny = Record<string, any>;
 
 const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
 const V1 = `${API}/api/v1`;
-const RESET_ON_RELOAD = false; 
 
 const UID = (() => {
     const k = "slc_uid";
@@ -65,11 +64,11 @@ export default function App() {
 
     useEffect(() => {
         (async () => {
-            await load();
             const t = setInterval(load, 4000);
+            await load();  
             return () => clearInterval(t);
         })();
-    }, []);
+    }, []); 
 
     const allProps = useMemo(() => {
         if (!snap) return [];
@@ -100,7 +99,6 @@ export default function App() {
             });
             if (!res.ok) throw new Error(`/api/v1/init -> ${res.status}`);
             setPrediction(null);
-            await load();
         } catch (e: any) {
             alert(e?.message ?? String(e));
         } finally {
@@ -146,149 +144,9 @@ export default function App() {
             if (!res.ok) throw new Error(`/api/v1/feedback -> ${res.status}`);
             setPrediction(null);
             setInput("");
-            await load();
         } catch (e: any) {
             alert(e?.message ?? String(e));
         } finally {
             setBusy(false);
         }
     }
-
-    if (loading) {
-        return (
-            <div className="p-6">
-                <h1 className="text-xl font-bold">Self-Learning Classifier — React UI</h1>
-                <p>Loading…</p>
-            </div>
-        );
-    }
-
-    return (
-        <div className="min-h-screen bg-white text-gray-900">
-            <div className="max-w-5xl mx-auto p-6 space-y-6">
-                <header>
-                    <h1 className="text-2xl font-bold">Self-Learning Classifier — React UI</h1>
-                    <p className="text-sm text-gray-600">API: <code>{V1}</code></p>
-                    <p className="text-sm text-gray-600">User: <code>{UID}</code></p>
-                </header>
-
-                {error && <div className="p-3 border rounded-xl text-red-700 bg-red-50">{error}</div>}
-
-                {/* Init */}
-                <section className="p-4 border rounded-2xl space-y-3">
-                    <h2 className="text-lg font-semibold">Init classes</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <div className="space-y-2">
-                            <input className="w-full px-3 py-2 border rounded-xl" placeholder="Class 1 name"
-                                   value={c1Name} onChange={(e) => setC1Name(e.target.value)} />
-                            <input className="w-full px-3 py-2 border rounded-xl" placeholder="Class 1 properties (space/comma separated)"
-                                   value={c1PropsText} onChange={(e) => setC1PropsText(e.target.value)} />
-                        </div>
-                        <div className="space-y-2">
-                            <input className="w-full px-3 py-2 border rounded-xl" placeholder="Class 2 name"
-                                   value={c2Name} onChange={(e) => setC2Name(e.target.value)} />
-                            <input className="w-full px-3 py-2 border rounded-xl" placeholder="Class 2 properties (space/comma separated)"
-                                   value={c2PropsText} onChange={(e) => setC2PropsText(e.target.value)} />
-                        </div>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={onInit}
-                        disabled={sending || !c1Name.trim() || !c2Name.trim()}
-                        className="px-4 py-2 rounded-xl border bg-gray-900 text-white disabled:opacity-60"
-                    >
-                        Init
-                    </button>
-                </section>
-
-                {/* Properties */}
-                {state && (
-                    <section className="space-y-3">
-                        <h2 className="text-lg font-semibold">Properties</h2>
-                        <div className="overflow-x-auto border rounded-2xl">
-                            <table className="min-w-full border-collapse">
-                                <thead>
-                                <tr className="bg-gray-50">
-                                    <Th>Property</Th>
-                                    <Th>{state.class1?.name || "Class 1"}</Th>
-                                    <Th>{state.class2?.name || "Class 2"}</Th>
-                                    <Th>General</Th>
-                                    <Th>None</Th>
-                                </tr>
-                                </thead>
-                                <tbody>
-                                {Array.from(new Set(allProps)).map((p) => (
-                                    <tr key={p} className="odd:bg-white even:bg-gray-50">
-                                        <Td className="font-medium">{p}</Td>
-                                        <Td>{mark(state.class1?.properties, p)}</Td>
-                                        <Td>{mark(state.class2?.properties, p)}</Td>
-                                        <Td>{mark(state.generalClass, p)}</Td>
-                                        <Td>{mark(state.noneClass, p)}</Td>
-                                    </tr>
-                                ))}
-                                {!allProps.length && (
-                                    <tr><Td colSpan={5}>No properties yet</Td></tr>
-                                )}
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
-                )}
-
-                {/* Classify + Feedback */}
-                <section className="space-y-3">
-                    <h2 className="text-lg font-semibold">Classify</h2>
-                    <div className="flex gap-2 items-center">
-                        <input className="flex-1 px-3 py-2 border rounded-xl"
-                               placeholder="Enter properties separated by spaces or commas"
-                               value={inputText} onChange={(e) => setInputText(e.target.value)} />
-                        <button onClick={onClassify} disabled={sending || inputList.length === 0}
-                                className="px-4 py-2 rounded-xl border bg-gray-900 text-white disabled:opacity-60">
-                            Classify
-                        </button>
-                    </div>
-
-                    {!!guess && state && (
-                        <div className="p-3 border rounded-2xl">
-                            <div className="mb-2">Prediction: <b>{guess || "—"}</b></div>
-                            {reason && <div className="text-sm text-gray-600 mb-3">{reason}</div>}
-                            <div className="flex flex-wrap gap-2">
-                                <button onClick={() => sendFeedback(toVariant(guess, state))}
-                                        disabled={sending} className="px-4 py-2 rounded-xl border bg-gray-900 text-white disabled:opacity-60">
-                                    Correct
-                                </button>
-                                <button onClick={() => sendFeedback("class1")} disabled={sending} className="px-4 py-2 rounded-xl border">
-                                    It is {state.class1?.name || "Class 1"}
-                                </button>
-                                <button onClick={() => sendFeedback("class2")} disabled={sending} className="px-4 py-2 rounded-xl border">
-                                    It is {state.class2?.name || "Class 2"}
-                                </button>
-                                <button onClick={() => sendFeedback("none")} disabled={sending} className="px-4 py-2 rounded-xl border">
-                                    None class
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </section>
-            </div>
-        </div>
-    );
-}
-
-function Th({ children }: { children: React.ReactNode }) {
-    return <th className="text-left px-3 py-2 border-b">{children}</th>;
-}
-function Td({
-                children,
-                className = "",
-                ...rest
-            }: { children: React.ReactNode; className?: string } & React.HTMLAttributes<HTMLTableCellElement>) {
-    return (
-        <td className={`px-3 py-2 border-b ${className}`} {...rest}>
-            {children}
-        </td>
-    );
-}
-function mark(list: string[] | undefined, prop: string) {
-    return Array.isArray(list) && list.includes(prop) ? "✓" : "";
-}
