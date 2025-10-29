@@ -82,8 +82,6 @@ export default function App() {
       setLoading(true);
       await load();
       setLoading(false);
-      const t = setInterval(load, 4000);
-      return () => clearInterval(t);
     })();
   }, []);
 
