@@ -62,7 +62,6 @@ export default function App() {
 
   async function load() {
     try {
-      setLoading(true);
       setErr("");
       const res = await api(`/state`);
       if (!res.ok) throw new Error(`/api/v1/state -> ${res.status}`);
@@ -75,14 +74,14 @@ export default function App() {
       }
     } catch (e: any) {
       setErr(e?.message ?? String(e));
-    } finally {
-      setLoading(false);
     }
   }
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       await load();
+      setLoading(false);
       const t = setInterval(load, 4000);
       return () => clearInterval(t);
     })();
@@ -303,9 +302,9 @@ export default function App() {
     <div className="bg-dark text-light min-vh-100">
       <header className="py-3 mb-4 border-bottom bg-light">
         <div className="container d-flex flex-wrap justify-content-center">
-          <a href="/" className="d-flex align-items-center mb-3 mb-lg-0 me-lg-auto text-dark text-decoration-none">
+          <div className="d-flex align-items-center mb-3 mb-lg-0 me-lg-auto text-dark text-decoration-none">
             <span className="fs-4">Self-Learning Classifier</span>
-          </a>
+          </div>
         </div>
       </header>
 
@@ -314,7 +313,7 @@ export default function App() {
           <div className="col-lg-6 mb-4">
             <div className="card">
               <div className="card-body">
-                <h2 className="card-title">Init (names + properties)</h2>
+                <h2 className="card-title">Init</h2>
                 <div className="row g-3">
                   <div className="col-md-6">
                     <label className="form-label">Class 1 name</label>
@@ -341,7 +340,7 @@ export default function App() {
                     </button>
                   </div>
                 </div>
-                {loading && <p className="mt-3">Loading...</p>}
+                {(loading || busy) && <p className="mt-3">Loading...</p>}
                 {err && <p className="mt-3 text-danger">{err}</p>}
               </div>
             </div>
