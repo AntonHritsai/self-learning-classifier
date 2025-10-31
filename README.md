@@ -30,7 +30,7 @@ This is the recommended way to run the project for demonstration or development.
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/AntonKhPI2/self-learning-classifier.git
+    git clone https://github.com/AntonHritsai/self-learning-classifier.git
     cd self-learning-classifier
     ```
 
