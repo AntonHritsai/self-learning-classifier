@@ -11,10 +11,16 @@ type ClassifyAny = Record<string, any>;
 const API = import.meta.env.VITE_API_URL || "http://localhost:8080";
 const V1 = `${API}/api/v1`;
 
+function secureRandomString(length: number) {
+    const bytes = new Uint8Array(length);
+    window.crypto.getRandomValues(bytes);
+    return Array.from(bytes, byte => byte.toString(36)).join('');
+}
+
 const UID = (() => {
     const k = "slc_uid";
     let v = localStorage.getItem(k);
-    if (!v) { v = Math.random().toString(36).slice(2) + Date.now().toString(36); localStorage.setItem(k, v); }
+    if (!v) { v = secureRandomString(12) + Date.now().toString(36); localStorage.setItem(k, v); }
     return v;
 })();
 async function api(path: string, init?: RequestInit) {
