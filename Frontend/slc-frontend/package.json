@@ -22,7 +22,7 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.2.2",
     "@vitejs/plugin-react": "^5.0.2",
-    "@vitest/ui": "^2.0.5",
+    "@vitest/ui": "^4.0.6",
     "eslint": "^9.35.0",
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.24",
@@ -31,7 +31,7 @@
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.43.0",
     "vite": "^7.1.12",
-    "vitest": "^2.0.5",
+    "vitest": "^4.0.6", 
     "vite-tsconfig-paths": "^5.1.4"
   }
 }
