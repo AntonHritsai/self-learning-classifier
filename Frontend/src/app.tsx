@@ -68,7 +68,7 @@ export default function App() {
             await load();  
             return () => clearInterval(t);
         })();
-    }, []); 
+    }, []);
 
     const allProps = useMemo(() => {
         if (!snap) return [];
