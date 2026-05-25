@@ -225,10 +225,14 @@ func getUserID(w http.ResponseWriter, r *http.Request) string {
 		Value:    uid,
 		Path:     "/",
 		HttpOnly: true,
-		Secure:  true,
+		Secure:   isHTTPSRequest(r),
 		SameSite: http.SameSiteLaxMode,
 	})
 	return uid
+}
+
+func isHTTPSRequest(r *http.Request) bool {
+	return r.TLS != nil || r.Header.Get("X-Forwarded-Proto") == "https"
 }
 
 func (h *httpHandler) propRemove(w http.ResponseWriter, r *http.Request) error {
