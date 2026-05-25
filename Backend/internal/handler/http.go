@@ -225,6 +225,7 @@ func getUserID(w http.ResponseWriter, r *http.Request) string {
 		Value:    uid,
 		Path:     "/",
 		HttpOnly: true,
+		Secure:  true,
 		SameSite: http.SameSiteLaxMode,
 	})
 	return uid
